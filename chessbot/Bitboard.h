@@ -38,25 +38,27 @@ public:
 	Bitboard(uint64_t data);
 	Bitboard(const Bitboard& other);
 	Bitboard& operator=(const Bitboard& other);
-	Bitboard(Bitboard&& other);
-	Bitboard& operator=(Bitboard&& other);
+	Bitboard(Bitboard&& other) noexcept;
+	Bitboard& operator=(Bitboard&& other) noexcept;
 	~Bitboard();
+	static void Initialize();
 	void Insert(int row, int column);
 	void Insert(Square s);
 	bool GetState(int row, int column) const;
 	bool GetState(Square s) const;
 	void Reset(Square s);
-	uint64_t GetData();
+	uint64_t GetData() const;
 	void Print() const;
 	std::vector<std::pair<int, int>> GetPositions() const;
 	std::vector<Square> GetSquarePositions() const;
-	uint64_t GetBishopPossibleMoves(Square bishopPos, uint64_t board) const;
-	uint64_t GetRookPossibleMoves(Square rookPos, uint64_t board) const;
-	uint64_t GetQueenPossibleMoves(Square queenPos, uint64_t board) const;
-	uint64_t GetKnightPossibleMoves(Square knightPos, uint64_t board) const;
-	uint64_t GetKingPossibleMoves(Square kingPos, uint64_t board, Piece piece, Bitboard neverMoved) const;
-	uint64_t GetPawnsPossibleMoves(Square pawnPos, uint64_t board, Piece piece) const;
-	uint64_t GetPawnsPossibleAttacks(Square pawnPos, uint64_t enemyBoard, Piece piece) const;
+	int GetAmount() const;
+	static uint64_t GetBishopPossibleMoves(Square bishopPos, uint64_t board);
+	static uint64_t GetRookPossibleMoves(Square rookPos, uint64_t board);
+	static uint64_t GetQueenPossibleMoves(Square queenPos, uint64_t board);
+	static uint64_t GetKnightPossibleMoves(Square knightPos, uint64_t board);
+	static uint64_t GetKingPossibleMoves(Square kingPos, uint64_t board, Piece piece, Bitboard neverMoved);
+	static uint64_t GetPawnsPossibleMoves(Square pawnPos, uint64_t board, Piece piece);
+	static uint64_t GetPawnsPossibleAttacks(Square pawnPos, uint64_t enemyBoard, Piece piece);
 	
 	inline Bitboard  operator&(Square s) { return m_Data & SquareToBitBoard(s); }
 	inline Bitboard  operator|(Square s) { return  m_Data | SquareToBitBoard(s); }
@@ -65,15 +67,16 @@ public:
 	inline Bitboard  operator&(Bitboard b) { return m_Data & b.m_Data; }
 	inline Bitboard  operator|(Bitboard b) { return  m_Data | b.m_Data; }
 	inline Bitboard  operator^(Bitboard b) { return m_Data ^ b.m_Data; }
-	
+	static uint64_t SquareToBitBoard(const Square& s);
+	static std::pair<int, int> GetSquarePos(const Square& s);
+
 private:
 	uint64_t m_Data;
-	const uint64_t m_AllOne = { 0xFFFFFFFFFFFFFFFF };
+	//const uint64_t m_AllOne = { 0xFFFFFFFFFFFFFFFF };
 
-	Square MakeSquare(int row, int column) const;
-	uint64_t SquareToBitBoard(const Square& s) const;
+	static Square MakeSquare(int row, int column);
 	int Count() const;
-	Square bitscanForward(uint64_t board) const;
-	Square bitscanReverse(uint64_t board) const;
+	static Square bitscanForward(uint64_t board);
+	static Square bitscanReverse(uint64_t board);
 };
 

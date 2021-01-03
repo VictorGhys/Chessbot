@@ -177,14 +177,15 @@ void Core::Run( )
 			// Prevent jumps in time caused by break points
 			elapsedSeconds = std::min(elapsedSeconds, m_MaxElapsedSeconds);
 
-			// Call the Game object 's Update function, using time in seconds (!)
-			game.Update(elapsedSeconds);
-
+			
 			// Draw in the back buffer
 			game.Draw( );
 
 			// Update screen: swap back and front buffer
 			SDL_GL_SwapWindow( m_pWindow );
+			// Call the Game object 's Update function, using time in seconds (!)
+			game.Update(elapsedSeconds);
+
 		}
 	}
 }

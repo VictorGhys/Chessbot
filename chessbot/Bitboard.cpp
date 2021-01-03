@@ -8,7 +8,39 @@ uint64_t KnightMoves[64];
 
 Bitboard::Bitboard(uint64_t data)
 	:m_Data {data}
-	//,m_AllOne{0xFFFFFFFFFFFFFFFF}
+{
+	
+}
+Bitboard::Bitboard(const Bitboard& other)
+	:m_Data{other.m_Data}
+{
+}
+Bitboard& Bitboard::operator=(const Bitboard& other)
+{
+	if (this != &other)
+	{
+		m_Data = other.m_Data;
+	}
+	return *this;
+}
+Bitboard::Bitboard(Bitboard&& other) noexcept
+	:m_Data{ other.m_Data }
+{
+
+}
+Bitboard& Bitboard::operator=(Bitboard&& other) noexcept
+{
+	if (this != &other)
+	{
+		m_Data = other.m_Data;
+	}
+	return *this;
+}
+
+Bitboard::~Bitboard()
+{
+}
+void Bitboard::Initialize()
 {
 	//initialize squares
 	for (int i = 0; i < 64; ++i)
@@ -101,7 +133,6 @@ Bitboard::Bitboard(uint64_t data)
 	int row{ 0 };
 	for (int k = 0; k < 64; k++)
 	{
-		//KingMoves[k] = (1ULL << k);
 		KingMoves[k] = 0;
 		collumn = k % 8;
 		row = k / 8;
@@ -110,9 +141,9 @@ Bitboard::Bitboard(uint64_t data)
 		{
 			KingMoves[k] += (1ULL << collumn - 1 + row * 8);
 			//south west
-			if (row != 0 )
+			if (row != 0)
 			{
-				KingMoves[k] += (1ULL << collumn - 1 + (row - 1)* 8);
+				KingMoves[k] += (1ULL << collumn - 1 + (row - 1) * 8);
 			}
 			//north west
 			if (row != 8)
@@ -151,7 +182,6 @@ Bitboard::Bitboard(uint64_t data)
 	row = 0;
 	for (int k = 0; k < 64; k++)
 	{
-		//KnightMoves[k] = (1ULL << k);
 		KnightMoves[k] = 0;
 		collumn = k % 8;
 		row = k / 8;
@@ -213,40 +243,6 @@ Bitboard::Bitboard(uint64_t data)
 		}
 	}
 }
-Bitboard::Bitboard(const Bitboard& other)
-	:m_Data{other.m_Data}
-	/*,m_AllOne{ 0xFFFFFFFFFFFFFFFF }*/
-{
-}
-Bitboard& Bitboard::operator=(const Bitboard& other)
-{
-	if (this != &other)
-	{
-		m_Data = other.m_Data;
-		//m_AllOne = 0xFFFFFFFFFFFFFFFF;
-	}
-	return *this;
-}
-Bitboard::Bitboard(Bitboard&& other)
-	:m_Data{ other.m_Data }
-	/*, m_AllOne{ 0xFFFFFFFFFFFFFFFF }*/
-{
-
-}
-Bitboard& Bitboard::operator=(Bitboard&& other)
-{
-	if (this != &other)
-	{
-		m_Data = other.m_Data;
-		//m_AllOne = 0xFFFFFFFFFFFFFFFF;
-	}
-	return *this;
-}
-
-Bitboard::~Bitboard()
-{
-}
-
 void Bitboard::Insert(int row, int column)
 {
 	uint64_t mask = SquareToBitBoard(MakeSquare(row, column));
@@ -296,12 +292,12 @@ void Bitboard::Print() const
 	std::cout << std::endl;
 }
 
-Square Bitboard::MakeSquare(int row, int column) const
+Square Bitboard::MakeSquare(int row, int column)
 {
 	return Square((row << 3) + column);
 }
 
-uint64_t Bitboard::SquareToBitBoard(const Square& s) const 
+uint64_t Bitboard::SquareToBitBoard(const Square& s)
 {
 	return SquareBB[s];
 }
@@ -333,6 +329,21 @@ std::vector<std::pair<int, int>> Bitboard::GetPositions() const
 	}
 	return vec;
 }
+int Bitboard::GetAmount() const
+{
+	int count{};
+	for (int row = 0; row < 8; ++row)
+	{
+		for (int col = 0; col < 8; ++col)
+		{
+			if (GetState(row, col))
+			{
+				++count;
+			}
+		}
+	}
+	return count;
+}
 
 std::vector<Square> Bitboard::GetSquarePositions() const
 {
@@ -351,7 +362,7 @@ std::vector<Square> Bitboard::GetSquarePositions() const
 }
 
 //from https://rhysre.net/2019/01/15/magic-bitboards.html
-uint64_t Bitboard::GetBishopPossibleMoves(Square bishopPos, uint64_t board) const
+uint64_t Bitboard::GetBishopPossibleMoves(Square bishopPos, uint64_t board)
 {
 	uint64_t attacks = 0ULL;
 	
@@ -389,13 +400,13 @@ uint64_t Bitboard::GetBishopPossibleMoves(Square bishopPos, uint64_t board) cons
 
 	return attacks & ~SquareBB[bishopPos];
 }
-uint64_t Bitboard::GetPawnsPossibleMoves(Square pawnPos, uint64_t board, Piece piece) const
+uint64_t Bitboard::GetPawnsPossibleMoves(Square pawnPos, uint64_t board, Piece piece)
 {
 	uint64_t pos = SquareToBitBoard(pawnPos);
 	if (piece == W_PAWN && pawnPos < 64 - 8)
 	{
 		//make double move possible if on start pos
-		if (pawnPos >= 8 && pawnPos <= 15)
+		if (pawnPos >= 8 && pawnPos <= 15 && !(board & pos << 8))
 		{
 			pos += pos << 8;
 		}
@@ -406,7 +417,7 @@ uint64_t Bitboard::GetPawnsPossibleMoves(Square pawnPos, uint64_t board, Piece p
 		if (piece == B_PAWN && pawnPos > 7)
 		{
 			//make double move possible if on start pos
-			if (pawnPos >= 48 && pawnPos <= 55)
+			if (pawnPos >= 48 && pawnPos <= 55 && !(board & pos >> 8))
 			{
 				pos += pos >> 8;
 			}
@@ -415,27 +426,38 @@ uint64_t Bitboard::GetPawnsPossibleMoves(Square pawnPos, uint64_t board, Piece p
 	}
 	return pos;
 }
-uint64_t Bitboard::GetPawnsPossibleAttacks(Square pawnPos, uint64_t enemyBoard, Piece piece) const
+uint64_t Bitboard::GetPawnsPossibleAttacks(Square pawnPos, uint64_t enemyBoard, Piece piece)
 {
 	uint64_t pos = SquareToBitBoard(pawnPos);
 	uint64_t leftAttack{};
 	uint64_t rightAttack{};
 	if (piece == W_PAWN)
 	{
-		leftAttack = pos << 7;
-		rightAttack = pos << 9;
+		const int row{ GetSquarePos(pawnPos).first };
+		if ( row != 0)
+		{
+			leftAttack = pos << 7;
+		}
+		if ( row != 7)
+		{
+			rightAttack = pos << 9;
+		}
 	}
-	else
+	else if(piece == B_PAWN)
 	{
-		if (piece == B_PAWN)
+		const int row{ GetSquarePos(pawnPos).first };
+		if ( row != 0)
 		{
 			leftAttack = pos >> 9;
+		}
+		if ( row != 7)
+		{
 			rightAttack = pos >> 7;
 		}
 	}
 	return enemyBoard & (leftAttack | rightAttack);
 }
-uint64_t Bitboard::GetRookPossibleMoves(Square rookPos, uint64_t board) const
+uint64_t Bitboard::GetRookPossibleMoves(Square rookPos, uint64_t board)
 {
 	uint64_t attacks = 0ULL;
 
@@ -473,27 +495,27 @@ uint64_t Bitboard::GetRookPossibleMoves(Square rookPos, uint64_t board) const
 
 	return attacks & ~SquareBB[rookPos];
 }
-uint64_t Bitboard::GetQueenPossibleMoves(Square queenPos, uint64_t board) const
+uint64_t Bitboard::GetQueenPossibleMoves(Square queenPos, uint64_t board)
 {
 	return GetBishopPossibleMoves(queenPos, board) | GetRookPossibleMoves(queenPos, board);
 }
-uint64_t Bitboard::GetKnightPossibleMoves(Square knightPos, uint64_t board) const
+uint64_t Bitboard::GetKnightPossibleMoves(Square knightPos, uint64_t board)
 {
 	return KnightMoves[knightPos] & ~board;
 }
-uint64_t Bitboard::GetKingPossibleMoves(Square kingPos, uint64_t board, Piece piece, Bitboard neverMoved) const
+uint64_t Bitboard::GetKingPossibleMoves(Square kingPos, uint64_t board, Piece piece, Bitboard neverMoved)
 {
 	uint64_t castleMoves{};
 	//check for casteling
 	if (piece == Piece::W_KING)
 	{
 		//long
-		if (neverMoved.GetState(kingPos) && neverMoved.GetState(A1) && !Bitboard(board).GetState(C1) && !Bitboard(board).GetState(D1))
+		if (neverMoved.GetState(E1) && neverMoved.GetState(A1) && !Bitboard(board).GetState(C1) && !Bitboard(board).GetState(D1))
 		{
 			castleMoves |= SquareBB[B1];
 		}
 		//short
-		if (neverMoved.GetState(kingPos) && neverMoved.GetState(H1) && !Bitboard(board).GetState(F1))
+		if (neverMoved.GetState(E1) && neverMoved.GetState(H1) && !Bitboard(board).GetState(F1))
 		{
 			castleMoves |= SquareBB[G1];
 		}
@@ -502,12 +524,12 @@ uint64_t Bitboard::GetKingPossibleMoves(Square kingPos, uint64_t board, Piece pi
 	else
 	{
 		//long
-		if (neverMoved.GetState(kingPos) && neverMoved.GetState(A8) && !Bitboard(board).GetState(C8)&& !Bitboard(board).GetState(D8))
+		if (neverMoved.GetState(E8) && neverMoved.GetState(A8) && !Bitboard(board).GetState(C8)&& !Bitboard(board).GetState(D8))
 		{
 			castleMoves |= SquareBB[B8];
 		}
 		//short
-		if (neverMoved.GetState(kingPos) && neverMoved.GetState(H8) && !Bitboard(board).GetState(F8))
+		if (neverMoved.GetState(E8) && neverMoved.GetState(H8) && !Bitboard(board).GetState(F8))
 		{
 			castleMoves |= SquareBB[G8];
 		}
@@ -515,19 +537,23 @@ uint64_t Bitboard::GetKingPossibleMoves(Square kingPos, uint64_t board, Piece pi
 	return castleMoves | KingMoves[kingPos] & ~board;
 }
 
-Square Bitboard::bitscanForward(uint64_t board) const
+Square Bitboard::bitscanForward(uint64_t board)
 {
 	DWORD* index{ new DWORD{} };
 	BitScanForward64(index, board);
 	return Square(*index);
 }
-Square Bitboard::bitscanReverse(uint64_t board) const
+Square Bitboard::bitscanReverse(uint64_t board)
 {
 	DWORD* index{ new DWORD{} };
 	BitScanReverse64(index, board);
 	return Square(*index);
 }
-uint64_t Bitboard::GetData()
+uint64_t Bitboard::GetData() const
 {
 	return m_Data;
+}
+std::pair<int, int> Bitboard::GetSquarePos(const Square& s)
+{
+	return std::pair<int, int>{  utils::GetColumn(s, 8), utils::GetRow(s, 8)};
 }

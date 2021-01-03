@@ -2,6 +2,7 @@
 #include "Texture.h"
 #include "Bitboard.h"
 #include <algorithm>
+#include "Position.h"
 
 class Game
 {
@@ -30,31 +31,13 @@ private:
 	const int m_Rows;
 	Rectf m_Board;
 	float m_SquareWidth;
-	Bitboard m_WhiteSquares;
-	Bitboard m_WhitePawns;
-	Bitboard m_WhiteKnights;
-	Bitboard m_WhiteBishops;
-	Bitboard m_WhiteRooks;
-	Bitboard m_WhiteKing;
-	Bitboard m_WhiteQueen;
-
-	Bitboard m_BlackSquares;
-	Bitboard m_BlackPawns;
-	Bitboard m_BlackKnights;
-	Bitboard m_BlackBishops;
-	Bitboard m_BlackRooks;
-	Bitboard m_BlackKing;
-	Bitboard m_BlackQueen;
-	
-	Bitboard m_AllWhitePieces;
-	Bitboard m_AllBlackPieces;
 	bool m_IsHoldingAPiece;
 	Piece m_HoldedPiece;
 	Square m_HoldedPieceSquare;
 	Bitboard m_PossibleMoves;
-	bool m_IsWhitesTurn;
-	Bitboard m_NeverMoved;
 	bool m_IsInCheck;
+	Position m_CurrentPos;
+	int m_ChessBotDepth;
 	// FUNCTIONS
 	void Initialize( );
 	void Cleanup( );
@@ -81,17 +64,21 @@ private:
 	void DrawCircleInSquare(std::pair<int, int> p) const;
 	void DrawSquare(std::pair<int, int> p) const;
 	void DrawInCheck() const;
+	void DrawLastMove() const;
 
 	Square GetSquare(const Point2f& pos);
 	Piece GetPiece(const Square& s) const;
-	std::pair<int,int> GetSquarePos(const Square& s) const;
 	void PrintAsBitboard(uint64_t bb) const;
 	bool CheckValidMove(Square s);
 	void UpdateBoard(Square s);
-	//void UpdatePossibleMoves();
+	void UpdateMovedPiece(Square s);
 	void DeletePiece(Piece p, Square s);
 	Bitboard GetAttacks(Piece p, Square s, bool fromWhite, bool andMoves);
 	Bitboard GetAllAttacks(bool fromWhite);
 	bool CheckForCheck();
+	static Square MakeSquare(int row, int column);
+
+	float NegaMax(int depth, Position& pos);
+	Position RootNegaMax(int depth, Position& pos, float& outScore);
 };
 
