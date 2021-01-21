@@ -1,2 +1,16 @@
 # chessbot
-A computer oponent to play chess against
+A bot to play chess against. This is a research project for my course Gameplay Programming 1 at DAE. It is made in the Programming 1 framework.
+
+# How does it work
+## Board representation
+For the representation of the board I used a techinique called bitboards. With bitboards we use the property of the chess board having 8 rows and 8 collumns so 64 squares, to represent it using one 64 bit number. Now each square is represented with one bit, but we don't know what piece the bit represents. So we will need different bitboards for each piece type and color. The main benefit of using bitboards is that with modern x64 systems we can easily check it's state in one operation using bitwise operators.
+## Move generation
+For the move generation I precalculate the the king and knight moves and moves from sliding pieces in all direcions and store these in arrays of bitboards. I then use these to calculate the moves faster. Sliding pieces can only move along their line until a piece blocks them. So if there is a piece in the way, we need to do a bitscan forward to find the first bit that is on after our sliding piece, witch is the blocking piece. We then subtract the line from the blocking piece in the same direction from the normal moves without blocking pieces. Furthermore do I also need to take in acount special moves such as en passant for witch I need to keep track of the last move and casteling for witch I need to keep track of the pieces that haven't moved yet.
+## Evaluation
+My evaluation function has two parts and is pretty simple. The first part are the white pieces minus the black pieces witch are weighted according to their value. The second part is the mobility of the piece where pieces get a higher value if they are on good squares. For the negamax search it is important that evaluation is relative to who's turn it is.
+## Find the best move
+To find the best move I used the negamax search algorithm with alpha beta pruning. This works by making a game tree with as root the current possition witch is extend with all the possible moves. It keeps extending every possible moves with all the next possible moves and keeps doing this until we reach a specified depth. Then it uses our evaluation function to evaluate the position. Then we use the properties that if white wants to win he need to maximise his score and that if black wants to win he needs to minimize his score together with that max(a, b) == -min(-a, -b) to bubble back up towards the root node. Where we then play the move with the best score. The alpha and beta values represent the minimum score that the maximizing player is assured of and the maximum score that the minimizing player is assured of respectively. This is used to skip the evaluation of positions that are really good for one side, but you know that the other player won't allow you to have, because he already has a better move. This eliminates the need to search large portions of the game tree and significantly speeds up the search for the best move.
+# Result
+
+# Conclusion
+Although this bot is very basic compared to the best chess engines today, I'm still satisfied because it is still a daring opponent for me. A project like this will never be really finished, because there will always be ways to improve the engine and it's performance. So as long as I can't beat it, I could better focus on improving my own performance. 
