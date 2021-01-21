@@ -11,14 +11,14 @@ public:
 	Position& operator=(Position&& other) noexcept;
 
 	float Evaluate() const;
-	Bitboard GetAllMoves(bool fromWhite, bool withKingMoves) const;
-	Bitboard GetMoves(Piece p, Square s, bool fromWhite) const;
-	std::vector<Position> GetNextPositions();
-	Position MakeNextPosition(Piece p, Square s, Square newSquare);
-	void DeletePiece(Position& nextPos, Piece p, Square s);
-	Piece GetPiece(const Square& s) const;
+	Bitboard GetAllMoves(bool fromWhite, bool withKingMoves, bool attacksOnly) const;
+	Bitboard GetMoves(Piece p, Square s, bool fromWhite, bool attacksOnly) const;
+	std::vector<Position> GetNextPositions() const;
+	Position MakeNextPosition(Piece p, Square s, Square newSquare) const;
+	void DeletePiece(Piece p, Square s);
+	Piece GetPiece(Square s) const;
 	void Print();
-	bool isInCheck();
+	bool isInCheck(bool white) const;
 
 	Bitboard m_WhitePawns;
 	Bitboard m_WhiteKnights;

@@ -12,7 +12,7 @@ Game::Game( const Window& window )
 	,m_HoldedPiece{NO_PIECE}
 	,m_PossibleMoves{0}
 	, m_CurrentPos{}
-	,m_ChessBotDepth{3}
+	,m_ChessBotDepth{ 4 }
 {
 	Initialize( );
 }
@@ -25,35 +25,32 @@ Game::~Game( )
 void Game::Initialize( )
 {
 	Bitboard::Initialize();
-	/*std::cout << "white squares:\n";
-	m_WhiteSquares.Print();
-	std::cout << "white pawns:\n";
-	m_WhitePawns.Print();
+#pragma region BitboardTests
+	/*std::cout << "white pawns:\n";
+	m_CurrentPos.m_WhitePawns.Print();
 	std::cout << "white Knights:\n";
-	m_WhiteKnights.Print();
+	m_CurrentPos.m_WhiteKnights.Print();
 	std::cout << "white Bishops:\n";
-	m_WhiteBishops.Print();
+	m_CurrentPos.m_WhiteBishops.Print();
 	std::cout << "white Rooks:\n";
-	m_WhiteRooks.Print();
+	m_CurrentPos.m_WhiteRooks.Print();
 	std::cout << "white King:\n";
-	m_WhiteKing.Print();
+	m_CurrentPos.m_WhiteKing.Print();
 	std::cout << "white Queen:\n";
-	m_WhiteQueen.Print();
+	m_CurrentPos.m_WhiteQueen.Print();
 
-	std::cout << "Black squares:\n";
-	m_BlackSquares.Print();
 	std::cout << "Black pawns:\n";
-	m_BlackPawns.Print();
+	m_CurrentPos.m_BlackPawns.Print();
 	std::cout << "Black Knights:\n";
-	m_BlackKnights.Print();
+	m_CurrentPos.m_BlackKnights.Print();
 	std::cout << "Black Bishops:\n";
-	m_BlackBishops.Print();
+	m_CurrentPos.m_BlackBishops.Print();
 	std::cout << "Black Rooks:\n";
-	m_BlackRooks.Print();
+	m_CurrentPos.m_BlackRooks.Print();
 	std::cout << "Black King:\n";
-	m_BlackKing.Print();
+	m_CurrentPos.m_BlackKing.Print();
 	std::cout << "Black Queen:\n";
-	m_BlackQueen.Print();*/
+	m_CurrentPos.m_BlackQueen.Print();*/
 	//Diagonals
 	/*std::cout << "North east bit boards\n";
 	for (int i = 0; i < 64; i++)
@@ -98,11 +95,12 @@ void Game::Initialize( )
 	}*/
 	
 	/*std::cout << "white pawns:\n";
-	m_WhitePawns.Print();
-	m_WhitePawns.Insert(2, 2);
-	m_WhitePawns.Print();
-	m_WhitePawns.Reset(C3);
-	m_WhitePawns.Print();*/
+	m_CurrentPos.m_WhitePawns.Print();
+	m_CurrentPos.m_WhitePawns.Insert(2, 2);
+	m_CurrentPos.m_WhitePawns.Print();
+	m_CurrentPos.m_WhitePawns.Reset(C3);
+	m_CurrentPos.m_WhitePawns.Print();*/
+
 	/*std::cout << "---------KingMoves bit boards-----------------\n";
 	for (int i = 0; i < 64; i++)
 	{
@@ -113,6 +111,8 @@ void Game::Initialize( )
 	{
 		PrintAsBitboard(KnightMoves[i]);
 	}*/
+#pragma endregion
+
 }
 
 void Game::Cleanup( )
@@ -123,7 +123,7 @@ void Game::Cleanup( )
 
 void Game::Update( float elapsedSec )
 {
-	if (m_CurrentPos.m_IsWhitesTurn)
+	if (m_CurrentPos.m_IsWhitesTurn || m_HasMatchFinished)
 	{
 		return;
 	}
@@ -133,13 +133,20 @@ void Game::Update( float elapsedSec )
 	float elapsedTime{};
 	std::chrono::steady_clock::time_point startTime{};
 	startTime = std::chrono::high_resolution_clock::now();
-	Position engineMove = RootNegaMax(m_ChessBotDepth, m_CurrentPos, score);
+	//Position engineMove = RootNegaMax(m_ChessBotDepth, m_CurrentPos, score);
+	Position engineMove = RootNegaMaxAlphaBeta(m_ChessBotDepth, m_CurrentPos, score);
 	elapsedTime += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTime).count();
 	m_CurrentPos = engineMove;
 	m_CurrentPos.m_IsWhitesTurn = true;
-	std::cout << "Calculation took " << elapsedTime << " ms, current evaluation: " << score << std::endl;
+	std::cout << "Calculation took " << elapsedTime << " ms, current evaluation: " << score * -1 << std::endl;
 	std::cout << "Your turn\n";
-	CheckForCheck();
+	if (CheckForCheck() && m_CurrentPos.GetNextPositions().size() == 0)
+	{
+		std::cout << "-------------------------------------------------\n";
+		std::cout << "You Lost!\n";
+		std::cout << "r to restart\n";
+		std::cout << "-------------------------------------------------\n";
+	}
 }
 
 void Game::Draw( ) const
@@ -167,10 +174,8 @@ void Game::Draw( ) const
 }
 void Game::DrawChessBoard() const
 {
-	//glColor4f(0.f, 0.f, 0.f, 1.f);
 	glColor4f(181.f/255, 135.f/255, 99.f/255, 1.f);
 	utils::FillRect(m_Board);
-	//glColor4f(1.f, 1.f, 1.f, 1.f);
 	glColor4f(240.f/255, 218.f/255, 181.f/255, 1.f);
 	
 	bool draw{ false };
@@ -226,6 +231,8 @@ void Game::ProcessKeyUpEvent( const SDL_KeyboardEvent& e )
 	{
 	case SDLK_r:
 		m_CurrentPos = Position{};
+		m_HasMatchFinished = false;
+		m_IsInCheck = false;
 		break;
 	case SDLK_UP:
 		m_ChessBotDepth++;
@@ -247,54 +254,52 @@ void Game::ProcessMouseDownEvent(const SDL_MouseButtonEvent& e)
 	{
 	case SDL_BUTTON_LEFT:
 		//std::cout << " left button " << std::endl;
-		if (m_IsHoldingAPiece)
+		if (!m_HasMatchFinished)
 		{
-				
-			Square clickedSquare{ GetSquare(Point2f{ float(e.x),m_Window.height - float(e.y) }) };
-			//check if valid spot for piece
-			if (CheckValidMove(clickedSquare))
+			if (m_IsHoldingAPiece)
 			{
-				//update the board
-				UpdateBoard(clickedSquare);
+				Square clickedSquare{ GetSquare(Point2f{ float(e.x),m_Window.height - float(e.y) }) };
+				//check if valid spot for piece
+				if (CheckValidMove(clickedSquare))
+				{
+					//update the board
+					UpdateBoard(clickedSquare);
+				}
+				m_IsHoldingAPiece = false;
+				m_HoldedPiece = NO_PIECE;
 			}
-			m_IsHoldingAPiece = false;
-			m_HoldedPiece = NO_PIECE;
-		}
-		else
-		{
-			//hold the piece that is clicked and show it's posible moves
-			m_HoldedPieceSquare = GetSquare(Point2f{ float(e.x),m_Window.height - float(e.y) });
-			m_HoldedPiece = GetPiece(m_HoldedPieceSquare);
-			if (m_HoldedPiece != NO_PIECE)
+			else
 			{
-				if (m_CurrentPos.m_IsWhitesTurn && (m_HoldedPiece == W_PAWN
-					|| m_HoldedPiece == W_KNIGHT
-					|| m_HoldedPiece == W_BISHOP
-					|| m_HoldedPiece == W_ROOK
-					|| m_HoldedPiece == W_QUEEN
-					|| m_HoldedPiece == W_KING))
+				//hold the piece that is clicked and show it's posible moves
+				m_HoldedPieceSquare = GetSquare(Point2f{ float(e.x),m_Window.height - float(e.y) });
+				m_HoldedPiece = GetPiece(m_HoldedPieceSquare);
+				if (m_HoldedPiece != NO_PIECE)
 				{
-					m_IsHoldingAPiece = true;
+					if (m_CurrentPos.m_IsWhitesTurn && (m_HoldedPiece == W_PAWN
+						|| m_HoldedPiece == W_KNIGHT
+						|| m_HoldedPiece == W_BISHOP
+						|| m_HoldedPiece == W_ROOK
+						|| m_HoldedPiece == W_QUEEN
+						|| m_HoldedPiece == W_KING))
+					{
+						m_IsHoldingAPiece = true;
+					}
+					else if (!m_CurrentPos.m_IsWhitesTurn && (m_HoldedPiece == B_PAWN
+						|| m_HoldedPiece == B_KNIGHT
+						|| m_HoldedPiece == B_BISHOP
+						|| m_HoldedPiece == B_ROOK
+						|| m_HoldedPiece == B_QUEEN
+						|| m_HoldedPiece == B_KING))
+					{
+						m_IsHoldingAPiece = true;
+					}
 				}
-				else if (!m_CurrentPos.m_IsWhitesTurn && (m_HoldedPiece == B_PAWN
-					|| m_HoldedPiece == B_KNIGHT
-					|| m_HoldedPiece == B_BISHOP
-					|| m_HoldedPiece == B_ROOK
-					|| m_HoldedPiece == B_QUEEN
-					|| m_HoldedPiece == B_KING))
-				{
-					m_IsHoldingAPiece = true;
-				}
+				m_PossibleMoves = m_CurrentPos.GetMoves(m_HoldedPiece, m_HoldedPieceSquare, m_CurrentPos.m_IsWhitesTurn, false);
+				//GetAllAttacks(true).Print();
 			}
-			//UpdatePossibleMoves();
-			m_PossibleMoves = GetAttacks(m_HoldedPiece, m_HoldedPieceSquare, m_CurrentPos.m_IsWhitesTurn, true);
-
-			//GetAllAttacks(true).Print();
 		}
-			
 		break;
 	}
-	
 }
 
 bool Game::CheckValidMove(Square s)
@@ -326,7 +331,7 @@ Square Game::GetSquare(const Point2f& pos)
 	return Square((row << 3) + col);
 }
 
-Piece Game::GetPiece(const Square& s) const
+Piece Game::GetPiece(Square s) const
 {
 	if (m_CurrentPos.m_WhitePawns.GetState(s))
 	{
@@ -689,10 +694,6 @@ void Game::DrawLastMove() const
 			, m_SquareWidth, m_SquareWidth);
 	}
 }
-uint64_t SquareToBitBoard(const Square& s)
-{
-	return SquareBB[s];
-}
 
 void Game::PrintAsBitboard(uint64_t bb) const
 {
@@ -702,7 +703,7 @@ void Game::PrintAsBitboard(uint64_t bb) const
 	{
 		for (int col = 0; col < 8; ++col)
 		{
-			if (bb & SquareToBitBoard(MakeSquare(row, col)))
+			if (bb & Bitboard::SquareToBitBoard(MakeSquare(row, col)))
 			{
 				std::cout << "| X ";
 			}
@@ -781,21 +782,27 @@ void Game::UpdateMovedPiece(Square s)
 		m_CurrentPos.m_WhiteQueen.Insert(s);
 		break;
 	case W_KING:
-		m_CurrentPos.m_WhiteKing.Reset(m_HoldedPieceSquare);
-		m_CurrentPos.m_WhiteKing.Insert(s);
 		//castling
 		//long
-		if (m_HoldedPieceSquare == E1 && m_CurrentPos.m_AllWhitePieces.GetState(A1) && s == B1)
+		if (m_HoldedPieceSquare == E1 && m_CurrentPos.m_AllWhitePieces.GetState(A1) && s == C1)
 		{
+			//can't castle out of check
+			if (m_CurrentPos.isInCheck(true))
+				return;
 			m_CurrentPos.m_WhiteRooks.Reset(A1);
-			m_CurrentPos.m_WhiteRooks.Insert(C1);
+			m_CurrentPos.m_WhiteRooks.Insert(D1);
 		}
 		//short
 		if (m_HoldedPieceSquare == E1 && m_CurrentPos.m_AllWhitePieces.GetState(H1) && s == G1)
 		{
+			//can't castle out of check
+			if (m_CurrentPos.isInCheck(true))
+				return;
 			m_CurrentPos.m_WhiteRooks.Reset(H1);
 			m_CurrentPos.m_WhiteRooks.Insert(F1);
 		}
+		m_CurrentPos.m_WhiteKing.Reset(m_HoldedPieceSquare);
+		m_CurrentPos.m_WhiteKing.Insert(s);
 		break;
 	case B_PAWN:
 		m_CurrentPos.m_BlackPawns.Reset(m_HoldedPieceSquare);
@@ -824,21 +831,27 @@ void Game::UpdateMovedPiece(Square s)
 		m_CurrentPos.m_BlackQueen.Insert(s);
 		break;
 	case B_KING:
-		m_CurrentPos.m_BlackKing.Reset(m_HoldedPieceSquare);
-		m_CurrentPos.m_BlackKing.Insert(s);
 		//castling
 		//long
-		if (m_HoldedPieceSquare == E8 && m_CurrentPos.m_AllBlackPieces.GetState(A8) && s == B8)
+		if (m_HoldedPieceSquare == E8 && m_CurrentPos.m_AllBlackPieces.GetState(A8) && s == C8)
 		{
+			//can't castle out of check
+			if (m_CurrentPos.isInCheck(true))
+				return;
 			m_CurrentPos.m_BlackRooks.Reset(A8);
-			m_CurrentPos.m_BlackRooks.Insert(C8);
+			m_CurrentPos.m_BlackRooks.Insert(D8);
 		}
 		//short
 		if (m_HoldedPieceSquare == E8 && m_CurrentPos.m_AllBlackPieces.GetState(H8) && s == G8)
 		{
+			//can't castle out of check
+			if (m_CurrentPos.isInCheck(true))
+				return;
 			m_CurrentPos.m_BlackRooks.Reset(H8);
 			m_CurrentPos.m_BlackRooks.Insert(F8);
 		}
+		m_CurrentPos.m_BlackKing.Reset(m_HoldedPieceSquare);
+		m_CurrentPos.m_BlackKing.Insert(s);
 		break;
 	case PIECE_NB:
 		break;
@@ -898,174 +911,15 @@ void Game::DeletePiece(Piece p, Square s)
 		break;
 	}
 }
-Bitboard Game::GetAttacks(Piece p, Square s, bool fromWhite, bool andMoves)
-{
-	Bitboard result{0};
-	uint64_t allpieces = m_CurrentPos.m_AllBlackPieces.GetData() | m_CurrentPos.m_AllWhitePieces.GetData();
-	if (fromWhite)
-	{
-		switch (p)
-		{
-		case NO_PIECE:
-			break;
-		case W_PAWN:
-			if (andMoves)
-			{
-				result = m_CurrentPos.m_WhitePawns.GetPawnsPossibleMoves(s, m_CurrentPos.m_AllWhitePieces.GetData(), W_PAWN)
-					& ~m_CurrentPos.m_BlackPawns.GetData() | m_CurrentPos.m_WhitePawns.GetPawnsPossibleAttacks(s, m_CurrentPos.m_AllBlackPieces.GetData(), W_PAWN);
-			}
-			else
-			{
-				result = m_CurrentPos.m_WhitePawns.GetPawnsPossibleAttacks(s, m_CurrentPos.m_AllBlackPieces.GetData(), W_PAWN);
-			}
-			break;
-		case W_KNIGHT:
-			result = m_CurrentPos.m_WhiteKnights.GetKnightPossibleMoves(s, m_CurrentPos.m_AllWhitePieces.GetData());
-			break;
-		case W_BISHOP:
-			result = m_CurrentPos.m_WhiteBishops.GetBishopPossibleMoves(s, allpieces & ~m_CurrentPos.m_WhiteBishops.GetData());
-			break;
-		case W_ROOK:
-			result = m_CurrentPos.m_WhiteRooks.GetRookPossibleMoves(s, allpieces & ~m_CurrentPos.m_WhiteRooks.GetData());
-			break;
-		case W_QUEEN:
-			result = m_CurrentPos.m_WhiteQueen.GetQueenPossibleMoves(s, allpieces & ~m_CurrentPos.m_WhiteQueen.GetData());
-			break;
-		case W_KING:
-			result = m_CurrentPos.m_WhiteKing.GetKingPossibleMoves(s, m_CurrentPos.m_AllWhitePieces.GetData(), W_KING, m_CurrentPos.m_NeverMoved);
-			result = result & ~GetAllAttacks(false).GetData();
-			break;
-		case PIECE_NB:
-			break;
-		default:
-			break;
-		}
-		result = result & ~m_CurrentPos.m_AllWhitePieces.GetData();
-	}
-	else
-	{
-		switch (p)
-		{
-		case NO_PIECE:
-			break;
-		case B_PAWN:
-			if (andMoves)
-			{
-				result = m_CurrentPos.m_BlackPawns.GetPawnsPossibleMoves(s, m_CurrentPos.m_AllBlackPieces.GetData(), B_PAWN)
-					& ~m_CurrentPos.m_WhitePawns.GetData() | m_CurrentPos.m_BlackPawns.GetPawnsPossibleAttacks(s, m_CurrentPos.m_AllWhitePieces.GetData(), B_PAWN);
-			}
-			else
-			{
-				result = m_CurrentPos.m_BlackPawns.GetPawnsPossibleAttacks(s, m_CurrentPos.m_AllWhitePieces.GetData(), B_PAWN);
-			}
-			break;
-		case B_KNIGHT:
-			result = m_CurrentPos.m_BlackKnights.GetKnightPossibleMoves(s, m_CurrentPos.m_AllBlackPieces.GetData());
-			break;
-		case B_BISHOP:
-			result = m_CurrentPos.m_BlackBishops.GetBishopPossibleMoves(s, allpieces & ~m_CurrentPos.m_BlackBishops.GetData());
-			break;
-		case B_ROOK:
-			result = m_CurrentPos.m_BlackRooks.GetRookPossibleMoves(s, allpieces & ~m_CurrentPos.m_BlackRooks.GetData());
-			break;
-		case B_QUEEN:
-			result = m_CurrentPos.m_BlackQueen.GetQueenPossibleMoves(s, allpieces & ~m_CurrentPos.m_BlackQueen.GetData());
-			break;
-		case B_KING:
-			result = m_CurrentPos.m_BlackKing.GetKingPossibleMoves(s, m_CurrentPos.m_AllBlackPieces.GetData(), B_KING, m_CurrentPos.m_NeverMoved);
-			result = result & ~GetAllAttacks(true).GetData();
-			break;
-		case PIECE_NB:
-			break;
-		default:
-			break;
-		}
-		result = result & ~m_CurrentPos.m_AllBlackPieces.GetData();
 
-	}
-	return result;
-}
-Bitboard Game::GetAllAttacks(bool fromWhite)
-{
-	Bitboard result{0};
-	Square s;
-	if (fromWhite)
-	{
-		for (std::pair<int, int> p : m_CurrentPos.m_WhitePawns.GetPositions())
-		{
-			s = MakeSquare(p.first, p.second);
-			result = result | GetAttacks(W_PAWN, s, fromWhite, false);
-		}
-		for (std::pair<int, int> p : m_CurrentPos.m_WhiteKnights.GetPositions())
-		{
-			s = MakeSquare(p.first, p.second);
-			result = result | GetAttacks(W_KNIGHT, s, fromWhite, false);
-		}
-		for (std::pair<int, int> p : m_CurrentPos.m_WhiteBishops.GetPositions())
-		{
-			s = MakeSquare(p.first, p.second);
-			result = result | GetAttacks(W_BISHOP, s, fromWhite, false);
-		}
-		for (std::pair<int, int> p : m_CurrentPos.m_WhiteRooks.GetPositions())
-		{
-			s = MakeSquare(p.first, p.second);
-			result = result | GetAttacks(W_ROOK, s, fromWhite, false);
-		}
-		for (std::pair<int, int> p : m_CurrentPos.m_WhiteQueen.GetPositions())
-		{
-			s = MakeSquare(p.first, p.second);
-			result = result | GetAttacks(W_QUEEN, s, fromWhite, false);
-		}
-		/*for (std::pair<int, int> p : m_CurrentPos.m_WhiteKing.GetPositions())
-		{
-			s = MakeSquare(p.first, p.second);
-			result = result | GetAttacks(W_KING, s, fromWhite, false);
-		}*/
-
-	}
-	else
-	{
-		for (std::pair<int, int> p : m_CurrentPos.m_BlackPawns.GetPositions())
-		{
-			s = MakeSquare(p.first, p.second);
-			result = result | GetAttacks(B_PAWN, s, fromWhite, false);
-		}
-		for (std::pair<int, int> p : m_CurrentPos.m_BlackKnights.GetPositions())
-		{
-			s = MakeSquare(p.first, p.second);
-			result = result | GetAttacks(B_KNIGHT, s, fromWhite, false);
-		}
-		for (std::pair<int, int> p : m_CurrentPos.m_BlackBishops.GetPositions())
-		{
-			s = MakeSquare(p.first, p.second);
-			result = result | GetAttacks(B_BISHOP, s, fromWhite, false);
-		}
-		for (std::pair<int, int> p : m_CurrentPos.m_BlackRooks.GetPositions())
-		{
-			s = MakeSquare(p.first, p.second);
-			result = result | GetAttacks(B_ROOK, s, fromWhite, false);
-		}
-		for (std::pair<int, int> p : m_CurrentPos.m_BlackQueen.GetPositions())
-		{
-			s = MakeSquare(p.first, p.second);
-			result = result | GetAttacks(B_QUEEN, s, fromWhite, false);
-		}
-		/*for (std::pair<int, int> p : m_CurrentPos.m_BlackKing.GetPositions())
-		{
-			s = MakeSquare(p.first, p.second);
-			result = result | GetAttacks(B_KING, s, fromWhite, false);
-		}*/
-	}
-	return result;
-}
 bool Game::CheckForCheck()
 {
 	if (!m_CurrentPos.m_IsWhitesTurn)
 	{
 		//check if black is in check
-		if (GetAllAttacks(true).GetData() & SquareBB[m_CurrentPos.m_BlackKing.GetSquarePositions().front()])
+		if (m_CurrentPos.GetAllMoves(true, true, true).GetData() & SquareBB[m_CurrentPos.m_BlackKing.GetSquarePositions().front()])
 		{
-			GetAllAttacks(true).Print();
+			//m_CurrentPos.GetAllMoves(true, true).Print();
 
 			std::cout << "black is in check!\n";
 			m_IsInCheck = true;
@@ -1073,17 +927,17 @@ bool Game::CheckForCheck()
 		}
 	}
 	//check if white is in check
-	else if (GetAllAttacks(false).GetData() & SquareBB[m_CurrentPos.m_WhiteKing.GetSquarePositions().front()])
+	else if (m_CurrentPos.GetAllMoves(false, true, true).GetData() & SquareBB[m_CurrentPos.m_WhiteKing.GetSquarePositions().front()])
 	{
+		//m_CurrentPos.GetAllMoves(false, true).Print();
 		std::cout << "white is in check!\n";
 		m_IsInCheck = true;
 		return true;
 	}
 	return false;
 }
-float Game::NegaMax(int depth, Position& pos)
+float Game::NegaMax(int depth, const Position& pos)
 {
-
 	if (depth == 0) 
 		return pos.Evaluate();
 	float max = std::numeric_limits<float>::lowest();
@@ -1096,22 +950,91 @@ float Game::NegaMax(int depth, Position& pos)
 	}
 	return max;
 }
-Position Game::RootNegaMax(int depth, Position& pos, float& outScore)
+Position Game::RootNegaMax(int depth, const Position& pos, float& outScore)
 {
 	float max = std::numeric_limits<float>::lowest();
 	Position bestContinuation{};
 	std::vector<Position> nextPositions{ pos.GetNextPositions() };
 	if (nextPositions.size() == 0)
 	{
-		std::cout << "-------------------------------------------------\n";
-		std::cout << "Congratulations! You won!\n";
-		std::cout << "-------------------------------------------------\n";
+		if (m_CurrentPos.isInCheck(false))
+		{
+			std::cout << "-------------------------------------------------\n";
+			std::cout << "Congratulations! You won!\n";
+			std::cout << "Press r to restart\n";
+			std::cout << "-------------------------------------------------\n";
+		}
+		else
+		{
+			std::cout << "-------------------------------------------------\n";
+			std::cout << "Stalemate! Nobody won!\n";
+			std::cout << "Press r to restart\n";
+			std::cout << "-------------------------------------------------\n";
+		}
+		m_HasMatchFinished = true;
+		return m_CurrentPos;
 	}
-	for (Position np : nextPositions) 
+	for (const Position& np : nextPositions) 
 	{
 		//np.Print();
 		float score = -NegaMax(depth - 1, np);
 		if (score > max)
+		{
+			max = score;
+			bestContinuation = np;
+			outScore = score;
+		}
+	}
+	//std::cout << "-------------------------------------------------\n";
+	return bestContinuation;
+}
+float Game::NegaMaxAlphaBeta(int depth, const Position& pos, float alpha, float beta)
+{
+	if (depth == 0)
+	{
+		//return quiesce(alpha, beta);
+		return pos.Evaluate();
+	}
+		
+	for (const Position& np : pos.GetNextPositions()) 
+	{
+		float score = -NegaMaxAlphaBeta(depth - 1, np, -beta, -alpha);
+		if (score >= beta)
+			return beta;   //  fail hard beta-cutoff
+		if (score > alpha)
+			alpha = score; // alpha acts like max in MiniMax
+	}
+	return alpha;
+}
+Position Game::RootNegaMaxAlphaBeta(int depth, const Position& pos, float& outScore)
+{
+	float max = std::numeric_limits<float>::lowest();
+	Position bestContinuation{};
+	std::vector<Position> nextPositions{ pos.GetNextPositions() };
+	if (nextPositions.size() == 0)
+	{
+		if (m_CurrentPos.isInCheck(false))
+		{
+			std::cout << "-------------------------------------------------\n";
+			std::cout << "Congratulations! You won!\n";
+			std::cout << "Press r to restart\n";
+			std::cout << "-------------------------------------------------\n";
+		}
+		else
+		{
+			std::cout << "-------------------------------------------------\n";
+			std::cout << "Stalemate! Nobody won!\n";
+			std::cout << "Press r to restart\n";
+			std::cout << "-------------------------------------------------\n";
+		}
+		m_HasMatchFinished = true;
+		return m_CurrentPos;
+	}
+	for (const Position& np : nextPositions)
+	{
+		//np.Print();
+		float score = -NegaMaxAlphaBeta(depth - 1, np, std::numeric_limits<float>::lowest(), FLT_MAX);
+		if (score >= max)
 		{
 			max = score;
 			bestContinuation = np;

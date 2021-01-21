@@ -146,7 +146,7 @@ void Bitboard::Initialize()
 				KingMoves[k] += (1ULL << collumn - 1 + (row - 1) * 8);
 			}
 			//north west
-			if (row != 8)
+			if (row != 7)
 			{
 				KingMoves[k] += (1ULL << collumn - 1 + (row + 1) * 8);
 			}
@@ -161,7 +161,7 @@ void Bitboard::Initialize()
 				KingMoves[k] += (1ULL << collumn + 1 + (row - 1) * 8);
 			}
 			//north east
-			if (row != 8)
+			if (row != 7)
 			{
 				KingMoves[k] += (1ULL << collumn + 1 + (row + 1) * 8);
 			}
@@ -194,7 +194,7 @@ void Bitboard::Initialize()
 				KnightMoves[k] += (1ULL << collumn - 2 + (row - 1) * 8);
 			}
 			//north west
-			if (row != 8)
+			if (row != 7)
 			{
 				KnightMoves[k] += (1ULL << collumn - 2 + (row + 1) * 8);
 			}
@@ -208,7 +208,7 @@ void Bitboard::Initialize()
 				KnightMoves[k] += (1ULL << collumn + 2 + (row - 1) * 8);
 			}
 			//north east
-			if (row != 8)
+			if (row != 7)
 			{
 				KnightMoves[k] += (1ULL << collumn + 2 + (row + 1) * 8);
 			}
@@ -361,7 +361,7 @@ std::vector<Square> Bitboard::GetSquarePositions() const
 	return vec;
 }
 
-//from https://rhysre.net/2019/01/15/magic-bitboards.html
+//from https://rhysre.net/fast-chess-move-generation-with-magic-bitboards.html
 uint64_t Bitboard::GetBishopPossibleMoves(Square bishopPos, uint64_t board)
 {
 	uint64_t attacks = 0ULL;
@@ -400,7 +400,7 @@ uint64_t Bitboard::GetBishopPossibleMoves(Square bishopPos, uint64_t board)
 
 	return attacks & ~SquareBB[bishopPos];
 }
-uint64_t Bitboard::GetPawnsPossibleMoves(Square pawnPos, uint64_t board, Piece piece)
+uint64_t Bitboard::GetPawnsPossibleMoves(Square pawnPos, uint64_t board, Piece piece, Square lastMoved, Square lastMovedOrigin, uint64_t enemyPawns)
 {
 	uint64_t pos = SquareToBitBoard(pawnPos);
 	if (piece == W_PAWN && pawnPos < 64 - 8)
@@ -412,16 +412,41 @@ uint64_t Bitboard::GetPawnsPossibleMoves(Square pawnPos, uint64_t board, Piece p
 		}
 		return pos << 8;
 	}
-	else
+	else if (piece == B_PAWN && pawnPos > 7)
 	{
-		if (piece == B_PAWN && pawnPos > 7)
+		//make double move possible if on start pos
+		if (pawnPos >= 48 && pawnPos <= 55 && !(board & pos >> 8))
 		{
-			//make double move possible if on start pos
-			if (pawnPos >= 48 && pawnPos <= 55 && !(board & pos >> 8))
-			{
-				pos += pos >> 8;
-			}
-			return pos >> 8;
+			pos += pos >> 8;
+		}
+		return pos >> 8;
+	}
+	
+	//en passant
+	if (piece == W_PAWN && enemyPawns & SquareToBitBoard(lastMoved) 
+		&& pawnPos < 40 && pawnPos > 31 && lastMoved < 40 && lastMoved > 31
+		&& lastMovedOrigin < 56 && lastMovedOrigin > 47)
+	{
+		if (lastMoved == pawnPos - 1)
+		{
+			pos += pos << 7;
+		}
+		else if (lastMoved == pawnPos + 1)
+		{
+			pos += pos << 9;
+		}
+	}
+	else if (piece == B_PAWN && enemyPawns & SquareToBitBoard(lastMoved) 
+		&& pawnPos < 32 && pawnPos > 23 && lastMoved < 32 && lastMoved > 23
+		&& lastMovedOrigin < 16 && lastMovedOrigin > 7)
+	{
+		if (lastMoved == pawnPos - 1)
+		{
+			pos += pos >> 7;
+		}
+		else if (lastMoved == pawnPos + 1)
+		{
+			pos += pos >> 9;
 		}
 	}
 	return pos;
@@ -503,30 +528,29 @@ uint64_t Bitboard::GetKnightPossibleMoves(Square knightPos, uint64_t board)
 {
 	return KnightMoves[knightPos] & ~board;
 }
-uint64_t Bitboard::GetKingPossibleMoves(Square kingPos, uint64_t board, Piece piece, Bitboard neverMoved)
+uint64_t Bitboard::GetKingPossibleMoves(Square kingPos, uint64_t board, Piece piece, const Bitboard& neverMoved, Square enemyKingPos, bool withEnemy)
 {
 	uint64_t castleMoves{};
 	//check for casteling
-	if (piece == Piece::W_KING)
+	if (piece == Piece::W_KING && kingPos == E1)
 	{
 		//long
-		if (neverMoved.GetState(E1) && neverMoved.GetState(A1) && !Bitboard(board).GetState(C1) && !Bitboard(board).GetState(D1))
+		if (neverMoved.GetState(E1) && neverMoved.GetState(A1) && !Bitboard(board).GetState(B1) && !Bitboard(board).GetState(C1) && !Bitboard(board).GetState(D1))
 		{
-			castleMoves |= SquareBB[B1];
+			castleMoves |= SquareBB[C1];
 		}
 		//short
 		if (neverMoved.GetState(E1) && neverMoved.GetState(H1) && !Bitboard(board).GetState(F1))
 		{
 			castleMoves |= SquareBB[G1];
 		}
-
 	}
-	else
+	else if(kingPos == E8)
 	{
 		//long
-		if (neverMoved.GetState(E8) && neverMoved.GetState(A8) && !Bitboard(board).GetState(C8)&& !Bitboard(board).GetState(D8))
+		if (neverMoved.GetState(E8) && neverMoved.GetState(A8) && !Bitboard(board).GetState(B8) && !Bitboard(board).GetState(C8)&& !Bitboard(board).GetState(D8))
 		{
-			castleMoves |= SquareBB[B8];
+			castleMoves |= SquareBB[C8];
 		}
 		//short
 		if (neverMoved.GetState(E8) && neverMoved.GetState(H8) && !Bitboard(board).GetState(F8))
@@ -534,7 +558,21 @@ uint64_t Bitboard::GetKingPossibleMoves(Square kingPos, uint64_t board, Piece pi
 			castleMoves |= SquareBB[G8];
 		}
 	}
-	return castleMoves | KingMoves[kingPos] & ~board;
+	if (withEnemy)
+	{
+		if (piece == W_KING)
+		{
+			return (castleMoves | KingMoves[kingPos] & ~board) & ~GetKingPossibleMoves(enemyKingPos, board, B_KING, neverMoved, kingPos, false);
+		}
+		else
+		{
+			return (castleMoves | KingMoves[kingPos] & ~board) & ~GetKingPossibleMoves(enemyKingPos, board, W_KING, neverMoved, kingPos, false);
+		}
+	}
+	else
+	{
+		return castleMoves | KingMoves[kingPos] & ~board;
+	}
 }
 
 Square Bitboard::bitscanForward(uint64_t board)

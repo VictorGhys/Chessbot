@@ -38,6 +38,7 @@ private:
 	bool m_IsInCheck;
 	Position m_CurrentPos;
 	int m_ChessBotDepth;
+	bool m_HasMatchFinished;
 	// FUNCTIONS
 	void Initialize( );
 	void Cleanup( );
@@ -67,18 +68,19 @@ private:
 	void DrawLastMove() const;
 
 	Square GetSquare(const Point2f& pos);
-	Piece GetPiece(const Square& s) const;
+	Piece GetPiece(Square s) const;
 	void PrintAsBitboard(uint64_t bb) const;
 	bool CheckValidMove(Square s);
 	void UpdateBoard(Square s);
 	void UpdateMovedPiece(Square s);
 	void DeletePiece(Piece p, Square s);
-	Bitboard GetAttacks(Piece p, Square s, bool fromWhite, bool andMoves);
-	Bitboard GetAllAttacks(bool fromWhite);
 	bool CheckForCheck();
 	static Square MakeSquare(int row, int column);
 
-	float NegaMax(int depth, Position& pos);
-	Position RootNegaMax(int depth, Position& pos, float& outScore);
+	float NegaMax(int depth, const Position& pos);
+	Position RootNegaMax(int depth, const Position& pos, float& outScore);
+	float NegaMaxAlphaBeta(int depth, const Position& pos, float alpha, float beta);
+	Position RootNegaMaxAlphaBeta(int depth, const Position& pos, float& outScore);
+
 };
 
