@@ -403,50 +403,54 @@ uint64_t Bitboard::GetBishopPossibleMoves(Square bishopPos, uint64_t board)
 uint64_t Bitboard::GetPawnsPossibleMoves(Square pawnPos, uint64_t board, Piece piece, Square lastMoved, Square lastMovedOrigin, uint64_t enemyPawns)
 {
 	uint64_t pos = SquareToBitBoard(pawnPos);
-	if (piece == W_PAWN && pawnPos < 64 - 8)
+	if (piece == W_PAWN && pawnPos <= H7)
 	{
 		//make double move possible if on start pos
-		if (pawnPos >= 8 && pawnPos <= 15 && !(board & pos << 8))
+		if (pawnPos >= A2 && pawnPos <= H2 && !(board & pos << 8))
 		{
 			pos += pos << 8;
 		}
-		return pos << 8;
+		//return pos << 8;
+		pos = pos << 8;
 	}
-	else if (piece == B_PAWN && pawnPos > 7)
+	else if (piece == B_PAWN && pawnPos >= A2)
 	{
 		//make double move possible if on start pos
-		if (pawnPos >= 48 && pawnPos <= 55 && !(board & pos >> 8))
+		if (pawnPos >= A7 && pawnPos <= H7 && !(board & pos >> 8))
 		{
 			pos += pos >> 8;
 		}
-		return pos >> 8;
+		//return pos >> 8;
+		pos = pos >> 8;
 	}
 	
 	//en passant
 	if (piece == W_PAWN && enemyPawns & SquareToBitBoard(lastMoved) 
-		&& pawnPos < 40 && pawnPos > 31 && lastMoved < 40 && lastMoved > 31
-		&& lastMovedOrigin < 56 && lastMovedOrigin > 47)
+		&& pawnPos >= A5 && pawnPos <= H5
+		&& lastMoved >= A5 && lastMoved <= H5
+		&& lastMovedOrigin >= A7 && lastMovedOrigin <= H7 )
 	{
 		if (lastMoved == pawnPos - 1)
 		{
-			pos += pos << 7;
+			pos += SquareToBitBoard(pawnPos) << 7;
 		}
 		else if (lastMoved == pawnPos + 1)
 		{
-			pos += pos << 9;
+			pos += SquareToBitBoard(pawnPos) << 9;
 		}
 	}
 	else if (piece == B_PAWN && enemyPawns & SquareToBitBoard(lastMoved) 
-		&& pawnPos < 32 && pawnPos > 23 && lastMoved < 32 && lastMoved > 23
-		&& lastMovedOrigin < 16 && lastMovedOrigin > 7)
+		&& pawnPos >= A4 && pawnPos <= H4
+		&& lastMoved >= A4 && lastMoved <= H4
+		&& lastMovedOrigin >= A2 && lastMovedOrigin <= H2 )
 	{
 		if (lastMoved == pawnPos - 1)
 		{
-			pos += pos >> 7;
+			pos += SquareToBitBoard(pawnPos) >> 9;
 		}
 		else if (lastMoved == pawnPos + 1)
 		{
-			pos += pos >> 9;
+			pos += SquareToBitBoard(pawnPos) >> 7;
 		}
 	}
 	return pos;

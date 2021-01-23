@@ -12,8 +12,8 @@ public:
 
 	float Evaluate() const;
 	Bitboard GetAllMoves(bool fromWhite, bool withKingMoves, bool attacksOnly) const;
-	Bitboard GetMoves(Piece p, Square s, bool fromWhite, bool attacksOnly) const;
-	std::vector<Position> GetNextPositions() const;
+	Bitboard GetMoves(Piece p, Square s, bool fromWhite, bool attacksOnly, bool capturesOnly) const;
+	std::vector<Position> GetNextPositions(bool capturesOnly) const;
 	Position MakeNextPosition(Piece p, Square s, Square newSquare) const;
 	void DeletePiece(Piece p, Square s);
 	Piece GetPiece(Square s) const;

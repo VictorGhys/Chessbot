@@ -131,6 +131,10 @@ float Position::Evaluate() const
 	score += (m_WhiteRooks.GetAmount() - m_BlackRooks.GetAmount()) * rookWeight;
 	score += (m_WhiteQueen.GetAmount() - m_BlackQueen.GetAmount()) * queenWeight;
 	score += (m_WhiteKing.GetAmount() - m_BlackKing.GetAmount()) * kingWeight;
+
+	bool isEndGame{ !(m_WhiteQueen.GetData() | m_BlackQueen.GetData()) ||
+		(Bitboard{m_AllWhitePieces.GetData() & ~m_WhitePawns.GetData() & ~m_WhiteKing.GetData()}.Count() < 2) &&
+	(Bitboard{m_AllBlackPieces.GetData() & ~m_BlackPawns.GetData() & ~m_BlackKing.GetData()}.Count() < 2) };
 	//mobility of the pieces
 	//https://codereview.stackexchange.com/questions/248987/c-chess-game-engine-using-minimax-and-alpha-beta-pruning
 	const float pawnMobility[8][8] = {
@@ -185,6 +189,7 @@ float Position::Evaluate() const
 		{-10,  0,  5,  0,  0,  0,  0,-10},
 		{-20,-10,-10, -5, -5,-10,-10,-20}
 	};
+	// king start and mid game
 	const float kingMobility[8][8] = {
 		{-30,-40,-40,-50,-50,-40,-40,-30},
 		{-30,-40,-40,-50,-50,-40,-40,-30},
@@ -194,6 +199,17 @@ float Position::Evaluate() const
 		{-10,-20,-20,-20,-20,-20,-20,-10},
 		{20, 20,  0,  0,  0,  0, 20, 20},
 		{20, 30, 10,  0,  0, 10, 30, 20 },
+	};
+	// king end game
+	const float kingEndMobility[8][8] = { 
+		{-50, -40, -30, -20, -20, -30, -40, -50},
+		{-30, -20, -10, 0, 0, -10, -20, -30},
+		{-30, -10, 20, 30, 30, 20, -10, -30},
+		{-30, -10, 30, 40, 40, 30, -10, -30},
+		{-30, -10, 30, 40, 40, 30, -10, -30},
+		{-30, -10, 20, 30, 30, 20, -10, -30},
+		{-30, -30, 0, 0, 0, 0, -30, -30},
+		{-50, -30, -30, -30, -30, -30, -30, -50} 
 	};
 	//white mobility
 	for (std::pair<int, int> p : m_WhitePawns.GetPositions())
@@ -218,7 +234,14 @@ float Position::Evaluate() const
 	}
 	for (std::pair<int, int> p : m_WhiteKing.GetPositions())
 	{
-		score += kingMobility[p.first][p.second];
+		if (isEndGame)
+		{
+			score += kingEndMobility[p.first][p.second];
+		}
+		else
+		{
+			score += kingMobility[p.first][p.second];
+		}
 	}
 	//black mobility
 	for (std::pair<int, int> p : m_BlackPawns.GetPositions())
@@ -243,7 +266,14 @@ float Position::Evaluate() const
 	}
 	for (std::pair<int, int> p : m_BlackKing.GetPositions())
 	{
-		score -= kingMobility[8-p.first][p.second];
+		if (isEndGame)
+		{
+			score -= kingEndMobility[8 - p.first][p.second];
+		}
+		else
+		{
+			score -= kingMobility[8 - p.first][p.second];
+		}
 	}
 
 	if (m_IsWhitesTurn)
@@ -256,7 +286,7 @@ float Position::Evaluate() const
 	}
 }
 
-Bitboard Position::GetMoves(Piece p, Square s, bool fromWhite, bool attacksOnly) const
+Bitboard Position::GetMoves(Piece p, Square s, bool fromWhite, bool attacksOnly, bool capturesOnly) const
 {
 	Bitboard result{ 0 };
 	uint64_t allpieces = m_AllBlackPieces.GetData() | m_AllWhitePieces.GetData();
@@ -302,6 +332,10 @@ Bitboard Position::GetMoves(Piece p, Square s, bool fromWhite, bool attacksOnly)
 		}
 		//can't move to a position where you already have a piece
 		result = result & ~m_AllWhitePieces.GetData();
+		if (capturesOnly)
+		{
+			result = result & m_AllBlackPieces;
+		}
 	}
 	else
 	{
@@ -345,7 +379,10 @@ Bitboard Position::GetMoves(Piece p, Square s, bool fromWhite, bool attacksOnly)
 		}
 		//can't move to a position where you already have a piece
 		result = result & ~m_AllBlackPieces.GetData();
-
+		if (capturesOnly)
+		{
+			result = result & m_AllWhitePieces;
+		}
 	}
 	return result;
 }
@@ -356,29 +393,29 @@ Bitboard Position::GetAllMoves(bool fromWhite, bool withKingMoves, bool attacksO
 	{
 		for (Square p : m_WhitePawns.GetSquarePositions())
 		{
-			result = result | GetMoves(W_PAWN, p, fromWhite, attacksOnly);
+			result = result | GetMoves(W_PAWN, p, fromWhite, attacksOnly, false);
 		}
 		for (Square p : m_WhiteKnights.GetSquarePositions())
 		{
-			result = result | GetMoves(W_KNIGHT, p, fromWhite, attacksOnly);
+			result = result | GetMoves(W_KNIGHT, p, fromWhite, attacksOnly, false);
 		}
 		for (Square p : m_WhiteBishops.GetSquarePositions())
 		{
-			result = result | GetMoves(W_BISHOP, p, fromWhite, attacksOnly);
+			result = result | GetMoves(W_BISHOP, p, fromWhite, attacksOnly, false);
 		}
 		for (Square p : m_WhiteRooks.GetSquarePositions())
 		{
-			result = result | GetMoves(W_ROOK, p, fromWhite, attacksOnly);
+			result = result | GetMoves(W_ROOK, p, fromWhite, attacksOnly, false);
 		}
 		for (Square p : m_WhiteQueen.GetSquarePositions())
 		{
-			result = result | GetMoves(W_QUEEN, p, fromWhite, attacksOnly);
+			result = result | GetMoves(W_QUEEN, p, fromWhite, attacksOnly, false);
 		}
 		if (withKingMoves)
 		{
 			for (Square p : m_WhiteKing.GetSquarePositions())
 			{
-				result = result | GetMoves(W_KING, p, fromWhite, attacksOnly);
+				result = result | GetMoves(W_KING, p, fromWhite, attacksOnly, false);
 			}
 		}
 	}
@@ -386,36 +423,36 @@ Bitboard Position::GetAllMoves(bool fromWhite, bool withKingMoves, bool attacksO
 	{
 		for (Square p : m_BlackPawns.GetSquarePositions())
 		{
-			result = result | GetMoves(B_PAWN, p, fromWhite, attacksOnly);
+			result = result | GetMoves(B_PAWN, p, fromWhite, attacksOnly, false);
 		}
 		for (Square p : m_BlackKnights.GetSquarePositions())
 		{
-			result = result | GetMoves(B_KNIGHT, p, fromWhite, attacksOnly);
+			result = result | GetMoves(B_KNIGHT, p, fromWhite, attacksOnly, false);
 		}
 		for (Square p : m_BlackBishops.GetSquarePositions())
 		{
-			result = result | GetMoves(B_BISHOP, p, fromWhite, attacksOnly);
+			result = result | GetMoves(B_BISHOP, p, fromWhite, attacksOnly, false);
 		}
 		for (Square p : m_BlackRooks.GetSquarePositions())
 		{
-			result = result | GetMoves(B_ROOK, p, fromWhite, attacksOnly);
+			result = result | GetMoves(B_ROOK, p, fromWhite, attacksOnly, false);
 		}
 		for (Square p : m_BlackQueen.GetSquarePositions())
 		{
-			result = result | GetMoves(B_QUEEN, p, fromWhite, attacksOnly);
+			result = result | GetMoves(B_QUEEN, p, fromWhite, attacksOnly, false);
 		}
 		if (withKingMoves)
 		{
 			for (Square p : m_BlackKing.GetSquarePositions())
 			{
-				result = result | GetMoves(B_KING, p, fromWhite, attacksOnly);
+				result = result | GetMoves(B_KING, p, fromWhite, attacksOnly, false);
 			}
 		}
 	}
 	return result;
 }
 
-std::vector<Position> Position::GetNextPositions() const
+std::vector<Position> Position::GetNextPositions(bool capturesOnly) const
 {
 	std::vector<Position> nextPositions{};
 	Position nextPossition;
@@ -423,7 +460,7 @@ std::vector<Position> Position::GetNextPositions() const
 	{
 		for (Square p : m_WhitePawns.GetSquarePositions())
 		{
-			for (Square np : GetMoves(W_PAWN, p, m_IsWhitesTurn, false).GetSquarePositions())
+			for (Square np : GetMoves(W_PAWN, p, m_IsWhitesTurn, false, capturesOnly).GetSquarePositions())
 			{
 				nextPossition = MakeNextPosition(W_PAWN, p, np);
 				//en passant
@@ -439,7 +476,7 @@ std::vector<Position> Position::GetNextPositions() const
 		}
 		for (Square p : m_WhiteKnights.GetSquarePositions())
 		{
-			for (Square np : GetMoves(W_KNIGHT, p, m_IsWhitesTurn, false).GetSquarePositions())
+			for (Square np : GetMoves(W_KNIGHT, p, m_IsWhitesTurn, false, capturesOnly).GetSquarePositions())
 			{
 				nextPossition = MakeNextPosition(W_KNIGHT, p, np);
 				if (!nextPossition.isInCheck(true))
@@ -450,7 +487,7 @@ std::vector<Position> Position::GetNextPositions() const
 		}
 		for (Square p : m_WhiteBishops.GetSquarePositions())
 		{
-			for (Square np : GetMoves(W_BISHOP, p, m_IsWhitesTurn, false).GetSquarePositions())
+			for (Square np : GetMoves(W_BISHOP, p, m_IsWhitesTurn, false, capturesOnly).GetSquarePositions())
 			{
 				nextPossition = MakeNextPosition(W_BISHOP, p, np);
 				if (!nextPossition.isInCheck(true))
@@ -461,7 +498,7 @@ std::vector<Position> Position::GetNextPositions() const
 		}
 		for (Square p : m_WhiteRooks.GetSquarePositions())
 		{
-			for (Square np : GetMoves(W_ROOK, p, m_IsWhitesTurn, false).GetSquarePositions())
+			for (Square np : GetMoves(W_ROOK, p, m_IsWhitesTurn, false, capturesOnly).GetSquarePositions())
 			{
 				nextPossition = MakeNextPosition(W_ROOK, p, np);
 				if (!nextPossition.isInCheck(true))
@@ -472,7 +509,7 @@ std::vector<Position> Position::GetNextPositions() const
 		}
 		for (Square p : m_WhiteQueen.GetSquarePositions())
 		{
-			for (Square np : GetMoves(W_QUEEN, p, m_IsWhitesTurn, false).GetSquarePositions())
+			for (Square np : GetMoves(W_QUEEN, p, m_IsWhitesTurn, false, capturesOnly).GetSquarePositions())
 			{
 				nextPossition = MakeNextPosition(W_QUEEN, p, np);
 				if (!nextPossition.isInCheck(true))
@@ -483,7 +520,7 @@ std::vector<Position> Position::GetNextPositions() const
 		}
 		for (Square p : m_WhiteKing.GetSquarePositions())
 		{
-			for (Square np : GetMoves(W_KING, p, m_IsWhitesTurn, false).GetSquarePositions())
+			for (Square np : GetMoves(W_KING, p, m_IsWhitesTurn, false, capturesOnly).GetSquarePositions())
 			{
 				nextPossition = MakeNextPosition(W_KING, p, np);
 				//long
@@ -520,7 +557,7 @@ std::vector<Position> Position::GetNextPositions() const
 	{
 		for (Square p : m_BlackPawns.GetSquarePositions())
 		{
-			for (Square np : GetMoves(B_PAWN, p, m_IsWhitesTurn, false).GetSquarePositions())
+			for (Square np : GetMoves(B_PAWN, p, m_IsWhitesTurn, false, capturesOnly).GetSquarePositions())
 			{
 				nextPossition = MakeNextPosition(B_PAWN, p, np);
 				//en passant
@@ -536,7 +573,7 @@ std::vector<Position> Position::GetNextPositions() const
 		}
 		for (Square p : m_BlackKnights.GetSquarePositions())
 		{
-			for (Square np : GetMoves(B_KNIGHT, p, m_IsWhitesTurn, false).GetSquarePositions())
+			for (Square np : GetMoves(B_KNIGHT, p, m_IsWhitesTurn, false, capturesOnly).GetSquarePositions())
 			{
 				nextPossition = MakeNextPosition(B_KNIGHT, p, np);
 				if (!nextPossition.isInCheck(false))
@@ -547,7 +584,7 @@ std::vector<Position> Position::GetNextPositions() const
 		}
 		for (Square p : m_BlackBishops.GetSquarePositions())
 		{
-			for (Square np : GetMoves(B_BISHOP, p, m_IsWhitesTurn, false).GetSquarePositions())
+			for (Square np : GetMoves(B_BISHOP, p, m_IsWhitesTurn, false, capturesOnly).GetSquarePositions())
 			{
 				nextPossition = MakeNextPosition(B_BISHOP, p, np);
 				if (!nextPossition.isInCheck(false))
@@ -558,7 +595,7 @@ std::vector<Position> Position::GetNextPositions() const
 		}
 		for (Square p : m_BlackRooks.GetSquarePositions())
 		{
-			for (Square np : GetMoves(B_ROOK, p, m_IsWhitesTurn, false).GetSquarePositions())
+			for (Square np : GetMoves(B_ROOK, p, m_IsWhitesTurn, false, capturesOnly).GetSquarePositions())
 			{
 				nextPossition = MakeNextPosition(B_ROOK, p, np);
 				if (!nextPossition.isInCheck(false))
@@ -569,7 +606,7 @@ std::vector<Position> Position::GetNextPositions() const
 		}
 		for (Square p : m_BlackQueen.GetSquarePositions())
 		{
-			for (Square np : GetMoves(B_QUEEN, p, m_IsWhitesTurn, false).GetSquarePositions())
+			for (Square np : GetMoves(B_QUEEN, p, m_IsWhitesTurn, false, capturesOnly).GetSquarePositions())
 			{
 				nextPossition = MakeNextPosition(B_QUEEN, p, np);
 				if (!nextPossition.isInCheck(false))
@@ -580,7 +617,7 @@ std::vector<Position> Position::GetNextPositions() const
 		}
 		for (Square p : m_BlackKing.GetSquarePositions())
 		{
-			for (Square np : GetMoves(B_KING, p, m_IsWhitesTurn, false).GetSquarePositions())
+			for (Square np : GetMoves(B_KING, p, m_IsWhitesTurn, false, capturesOnly).GetSquarePositions())
 			{
 				nextPossition = MakeNextPosition(B_KING, p, np);
 				//long

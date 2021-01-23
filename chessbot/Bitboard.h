@@ -70,11 +70,11 @@ public:
 	static uint64_t SquareToBitBoard(const Square& s);
 	static std::pair<int, int> GetSquarePos(const Square& s);
 	static Square MakeSquare(int row, int column);
+	int Count() const;
 
 private:
 	uint64_t m_Data;
 	
-	int Count() const;
 	static Square bitscanForward(uint64_t board);
 	static Square bitscanReverse(uint64_t board);
 };

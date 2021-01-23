@@ -39,6 +39,8 @@ private:
 	Position m_CurrentPos;
 	int m_ChessBotDepth;
 	bool m_HasMatchFinished;
+	bool m_UseQuisce;
+	int m_QuisceDepth;
 	// FUNCTIONS
 	void Initialize( );
 	void Cleanup( );
@@ -81,6 +83,7 @@ private:
 	Position RootNegaMax(int depth, const Position& pos, float& outScore);
 	float NegaMaxAlphaBeta(int depth, const Position& pos, float alpha, float beta);
 	Position RootNegaMaxAlphaBeta(int depth, const Position& pos, float& outScore);
+	float Quiesce(int quiesceDepth, const Position& pos, float alpha, float beta);
 
 };
 

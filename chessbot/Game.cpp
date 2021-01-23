@@ -8,11 +8,13 @@ Game::Game( const Window& window )
 	,m_Rows{8}
 	,m_Board{100,100,600,600}
 	,m_SquareWidth{ m_Board.width / m_Rows }
-	, m_IsHoldingAPiece{ false }
+	,m_IsHoldingAPiece{ false }
 	,m_HoldedPiece{NO_PIECE}
 	,m_PossibleMoves{0}
-	, m_CurrentPos{}
+	,m_CurrentPos{}
 	,m_ChessBotDepth{ 4 }
+	,m_UseQuisce{ false }
+	, m_QuisceDepth{ 1 }
 {
 	Initialize( );
 }
@@ -111,6 +113,13 @@ void Game::Initialize( )
 	{
 		PrintAsBitboard(KnightMoves[i]);
 	}*/
+	////en passant
+	//m_CurrentPos.m_WhitePawns.Insert(4, 5);
+	//m_CurrentPos.m_AllWhitePieces.Insert(4, 5);
+	//m_CurrentPos.m_BlackPawns.Insert(4, 6);
+	//m_CurrentPos.m_LastMovedSquare = G5;
+	//m_CurrentPos.m_LastMovedOriginalSquare = G7;
+	//m_CurrentPos.GetAllMoves(true, true, false).Print();
 #pragma endregion
 
 }
@@ -140,12 +149,14 @@ void Game::Update( float elapsedSec )
 	m_CurrentPos.m_IsWhitesTurn = true;
 	std::cout << "Calculation took " << elapsedTime << " ms, current evaluation: " << score * -1 << std::endl;
 	std::cout << "Your turn\n";
-	if (CheckForCheck() && m_CurrentPos.GetNextPositions().size() == 0)
+	//check for checkmate
+	if (CheckForCheck() && m_CurrentPos.GetNextPositions(false).size() == 0)
 	{
 		std::cout << "-------------------------------------------------\n";
 		std::cout << "You Lost!\n";
 		std::cout << "r to restart\n";
 		std::cout << "-------------------------------------------------\n";
+		m_HasMatchFinished = true;
 	}
 }
 
@@ -234,6 +245,9 @@ void Game::ProcessKeyUpEvent( const SDL_KeyboardEvent& e )
 		m_HasMatchFinished = false;
 		m_IsInCheck = false;
 		break;
+	case SDLK_q:
+		m_UseQuisce = !m_UseQuisce;
+		break;
 	case SDLK_UP:
 		m_ChessBotDepth++;
 		break;
@@ -294,7 +308,7 @@ void Game::ProcessMouseDownEvent(const SDL_MouseButtonEvent& e)
 						m_IsHoldingAPiece = true;
 					}
 				}
-				m_PossibleMoves = m_CurrentPos.GetMoves(m_HoldedPiece, m_HoldedPieceSquare, m_CurrentPos.m_IsWhitesTurn, false);
+				m_PossibleMoves = m_CurrentPos.GetMoves(m_HoldedPiece, m_HoldedPieceSquare, m_CurrentPos.m_IsWhitesTurn, false, false);
 				//GetAllAttacks(true).Print();
 			}
 		}
@@ -758,8 +772,13 @@ void Game::UpdateMovedPiece(Square s)
 	case W_PAWN:
 		m_CurrentPos.m_WhitePawns.Reset(m_HoldedPieceSquare);
 		m_CurrentPos.m_WhitePawns.Insert(s);
+		//en passant
+		if (m_CurrentPos.m_LastMovedSquare == s - 8 && m_CurrentPos.m_BlackPawns.GetData() & Bitboard::SquareToBitBoard(Square(s - 8)))
+		{
+			m_CurrentPos.m_BlackPawns.Reset(Square(s - 8));
+		}
 		//promotion
-		if (s > H7)
+		if (s >= A8)
 		{
 			m_CurrentPos.m_WhitePawns.Reset(s);
 			m_CurrentPos.m_WhiteQueen.Insert(s);
@@ -807,8 +826,13 @@ void Game::UpdateMovedPiece(Square s)
 	case B_PAWN:
 		m_CurrentPos.m_BlackPawns.Reset(m_HoldedPieceSquare);
 		m_CurrentPos.m_BlackPawns.Insert(s);
+		//en passant
+		if (m_CurrentPos.m_LastMovedSquare == s + 8 && m_CurrentPos.m_WhitePawns.GetData() & Bitboard::SquareToBitBoard(Square(s + 8)))
+		{
+			m_CurrentPos.m_WhitePawns.Reset(Square(s + 8));
+		}
 		//promotion
-		if (s < A2)
+		if (s <= H1)
 		{
 			m_CurrentPos.m_BlackPawns.Reset(s);
 			m_CurrentPos.m_BlackQueen.Insert(s);
@@ -920,7 +944,6 @@ bool Game::CheckForCheck()
 		if (m_CurrentPos.GetAllMoves(true, true, true).GetData() & SquareBB[m_CurrentPos.m_BlackKing.GetSquarePositions().front()])
 		{
 			//m_CurrentPos.GetAllMoves(true, true).Print();
-
 			std::cout << "black is in check!\n";
 			m_IsInCheck = true;
 			return true;
@@ -941,7 +964,7 @@ float Game::NegaMax(int depth, const Position& pos)
 	if (depth == 0) 
 		return pos.Evaluate();
 	float max = std::numeric_limits<float>::lowest();
-	for (Position np : pos.GetNextPositions()) 
+	for (Position np : pos.GetNextPositions(false)) 
 	{
 		//np.Print();
 		float score = -NegaMax(depth - 1, np);
@@ -954,7 +977,7 @@ Position Game::RootNegaMax(int depth, const Position& pos, float& outScore)
 {
 	float max = std::numeric_limits<float>::lowest();
 	Position bestContinuation{};
-	std::vector<Position> nextPositions{ pos.GetNextPositions() };
+	std::vector<Position> nextPositions{ pos.GetNextPositions(false) };
 	if (nextPositions.size() == 0)
 	{
 		if (m_CurrentPos.isInCheck(false))
@@ -992,11 +1015,17 @@ float Game::NegaMaxAlphaBeta(int depth, const Position& pos, float alpha, float 
 {
 	if (depth == 0)
 	{
-		//return quiesce(alpha, beta);
-		return pos.Evaluate();
+		if (m_UseQuisce)
+		{
+			return Quiesce(m_QuisceDepth, pos, alpha, beta);
+		}
+		else
+		{
+			return pos.Evaluate();
+		}
 	}
 		
-	for (const Position& np : pos.GetNextPositions()) 
+	for (const Position& np : pos.GetNextPositions(false)) 
 	{
 		float score = -NegaMaxAlphaBeta(depth - 1, np, -beta, -alpha);
 		if (score >= beta)
@@ -1010,7 +1039,7 @@ Position Game::RootNegaMaxAlphaBeta(int depth, const Position& pos, float& outSc
 {
 	float max = std::numeric_limits<float>::lowest();
 	Position bestContinuation{};
-	std::vector<Position> nextPositions{ pos.GetNextPositions() };
+	std::vector<Position> nextPositions{ pos.GetNextPositions(false) };
 	if (nextPositions.size() == 0)
 	{
 		if (m_CurrentPos.isInCheck(false))
@@ -1043,4 +1072,28 @@ Position Game::RootNegaMaxAlphaBeta(int depth, const Position& pos, float& outSc
 	}
 	//std::cout << "-------------------------------------------------\n";
 	return bestContinuation;
+}
+float Game::Quiesce(int quiesceDepth, const Position& pos, float alpha, float beta)
+{
+	float stand_pat = pos.Evaluate();
+	if (quiesceDepth == 0)
+	{
+		return stand_pat;
+	}
+	if (stand_pat >= beta)
+		return beta;
+	if (alpha < stand_pat)
+		alpha = stand_pat;
+
+	std::vector<Position> nextCapturePositions{ pos.GetNextPositions(true) };
+	for (const Position& np : nextCapturePositions)
+	{
+		float score = -Quiesce(quiesceDepth - 1, np, -beta, -alpha);
+
+		if (score >= beta)
+			return beta;
+		if (score > alpha)
+			alpha = score;
+	}
+	return alpha;
 }
