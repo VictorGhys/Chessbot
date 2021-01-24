@@ -136,12 +136,12 @@ float Position::Evaluate() const
 		(Bitboard{m_AllWhitePieces.GetData() & ~m_WhitePawns.GetData() & ~m_WhiteKing.GetData()}.Count() < 2) &&
 	(Bitboard{m_AllBlackPieces.GetData() & ~m_BlackPawns.GetData() & ~m_BlackKing.GetData()}.Count() < 2) };
 	//mobility of the pieces
-	//https://codereview.stackexchange.com/questions/248987/c-chess-game-engine-using-minimax-and-alpha-beta-pruning
+	//https://www.chessprogramming.org/Simplified_Evaluation_Function
 	const float pawnMobility[8][8] = {
 	 {0,  0,  0,  0,  0,  0,  0,  0},
 	{50, 50, 50, 50, 50, 50, 50, 50},
 	{10, 10, 20, 30, 30, 20, 10, 10},
-	 {5,  5, 10, 45, 45, 10,  5,  5},
+	 {5,  5, 10, 25, 25, 10,  5,  5},
 	 {0,  0,  0, 20, 20,  0,  0,  0},
 	{5, -5,-10,  0,  0,-10, -5,  5},
 	{5, 10, 10,-20,-20, 10, 10,  5},
@@ -833,9 +833,8 @@ Piece Position::GetPiece(Square s) const
 		return NO_PIECE;
 	}
 }
-void Position::Print()
+void Position::Print() const
 {
-	//std::cout << m_Data << std::endl;
 	if (!m_IsWhitesTurn)
 	{
 		std::cout << "black's turn\n";

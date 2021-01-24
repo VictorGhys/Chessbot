@@ -17,7 +17,7 @@ public:
 	Position MakeNextPosition(Piece p, Square s, Square newSquare) const;
 	void DeletePiece(Piece p, Square s);
 	Piece GetPiece(Square s) const;
-	void Print();
+	void Print() const;
 	bool isInCheck(bool white) const;
 
 	Bitboard m_WhitePawns;

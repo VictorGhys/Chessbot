@@ -142,7 +142,6 @@ void Game::Update( float elapsedSec )
 	float elapsedTime{};
 	std::chrono::steady_clock::time_point startTime{};
 	startTime = std::chrono::high_resolution_clock::now();
-	//Position engineMove = RootNegaMax(m_ChessBotDepth, m_CurrentPos, score);
 	Position engineMove = RootNegaMaxAlphaBeta(m_ChessBotDepth, m_CurrentPos, score);
 	elapsedTime += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTime).count();
 	m_CurrentPos = engineMove;
@@ -267,7 +266,6 @@ void Game::ProcessMouseDownEvent(const SDL_MouseButtonEvent& e)
 	switch (e.button)
 	{
 	case SDL_BUTTON_LEFT:
-		//std::cout << " left button " << std::endl;
 		if (!m_HasMatchFinished)
 		{
 			if (m_IsHoldingAPiece)
@@ -309,7 +307,6 @@ void Game::ProcessMouseDownEvent(const SDL_MouseButtonEvent& e)
 					}
 				}
 				m_PossibleMoves = m_CurrentPos.GetMoves(m_HoldedPiece, m_HoldedPieceSquare, m_CurrentPos.m_IsWhitesTurn, false, false);
-				//GetAllAttacks(true).Print();
 			}
 		}
 		break;
@@ -323,19 +320,7 @@ bool Game::CheckValidMove(Square s)
 
 void Game::ProcessMouseUpEvent( const SDL_MouseButtonEvent& e )
 {
-	//std::cout << "MOUSEBUTTONUP event: ";
-	//switch ( e.button )
-	//{
-	//case SDL_BUTTON_LEFT:
-	//	std::cout << " left button " << std::endl;
-	//	break;
-	//case SDL_BUTTON_RIGHT:
-	//	std::cout << " right button " << std::endl;
-	//	break;
-	//case SDL_BUTTON_MIDDLE:
-	//	std::cout << " middle button " << std::endl;
-	//	break;
-	//}
+	
 }
 
 Square Game::GetSquare(const Point2f& pos)
@@ -658,14 +643,14 @@ Square Game::MakeSquare(int row, int column)
 {
 	return Square((row << 3) + column);
 }
-void Game::DrawCircleInSquare(std::pair<int, int> p) const
+void Game::DrawCircleInSquare(const std::pair<int, int>& p) const
 {
 	Square s = MakeSquare(p.first, p.second);
 	utils::FillEllipse(Bitboard::GetSquarePos(s).first * m_SquareWidth + m_SquareWidth / 2.f + m_Board.left,
 		Bitboard::GetSquarePos(s).second * m_SquareWidth + m_SquareWidth / 2.f + m_Board.bottom
 		, m_SquareWidth / 4.f, m_SquareWidth / 4.f);
 }
-void Game::DrawSquare(std::pair<int, int> p) const
+void Game::DrawSquare(const std::pair<int, int>& p) const
 {
 	Square s = MakeSquare(p.first, p.second);
 	utils::FillRect(Bitboard::GetSquarePos(s).first * m_SquareWidth + m_Board.left,
@@ -943,7 +928,6 @@ bool Game::CheckForCheck()
 		//check if black is in check
 		if (m_CurrentPos.GetAllMoves(true, true, true).GetData() & SquareBB[m_CurrentPos.m_BlackKing.GetSquarePositions().front()])
 		{
-			//m_CurrentPos.GetAllMoves(true, true).Print();
 			std::cout << "black is in check!\n";
 			m_IsInCheck = true;
 			return true;
@@ -952,7 +936,6 @@ bool Game::CheckForCheck()
 	//check if white is in check
 	else if (m_CurrentPos.GetAllMoves(false, true, true).GetData() & SquareBB[m_CurrentPos.m_WhiteKing.GetSquarePositions().front()])
 	{
-		//m_CurrentPos.GetAllMoves(false, true).Print();
 		std::cout << "white is in check!\n";
 		m_IsInCheck = true;
 		return true;
@@ -966,7 +949,6 @@ float Game::NegaMax(int depth, const Position& pos)
 	float max = std::numeric_limits<float>::lowest();
 	for (Position np : pos.GetNextPositions(false)) 
 	{
-		//np.Print();
 		float score = -NegaMax(depth - 1, np);
 		if (score > max)
 			max = score;
@@ -999,7 +981,6 @@ Position Game::RootNegaMax(int depth, const Position& pos, float& outScore)
 	}
 	for (const Position& np : nextPositions) 
 	{
-		//np.Print();
 		float score = -NegaMax(depth - 1, np);
 		if (score > max)
 		{
@@ -1008,7 +989,6 @@ Position Game::RootNegaMax(int depth, const Position& pos, float& outScore)
 			outScore = score;
 		}
 	}
-	//std::cout << "-------------------------------------------------\n";
 	return bestContinuation;
 }
 float Game::NegaMaxAlphaBeta(int depth, const Position& pos, float alpha, float beta)
@@ -1061,7 +1041,6 @@ Position Game::RootNegaMaxAlphaBeta(int depth, const Position& pos, float& outSc
 	}
 	for (const Position& np : nextPositions)
 	{
-		//np.Print();
 		float score = -NegaMaxAlphaBeta(depth - 1, np, std::numeric_limits<float>::lowest(), FLT_MAX);
 		if (score >= max)
 		{
@@ -1070,7 +1049,6 @@ Position Game::RootNegaMaxAlphaBeta(int depth, const Position& pos, float& outSc
 			outScore = score;
 		}
 	}
-	//std::cout << "-------------------------------------------------\n";
 	return bestContinuation;
 }
 float Game::Quiesce(int quiesceDepth, const Position& pos, float alpha, float beta)

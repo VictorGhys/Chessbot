@@ -64,8 +64,8 @@ private:
 
 	void DrawPossibleMoves() const;
 	void DrawSquare(Square s) const;
-	void DrawCircleInSquare(std::pair<int, int> p) const;
-	void DrawSquare(std::pair<int, int> p) const;
+	void DrawCircleInSquare(const std::pair<int, int>& p) const;
+	void DrawSquare(const std::pair<int, int>& p) const;
 	void DrawInCheck() const;
 	void DrawLastMove() const;
 
