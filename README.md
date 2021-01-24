@@ -15,3 +15,14 @@ To find the best move I used the negamax search algorithm with alpha beta prunin
 ![result](./chessbot.gif)
 # Conclusion
 Although this bot is very basic compared to the best chess engines today, I'm satisfied because it is still a daring opponent for me. A project like this will never be really finished, because there will always be ways to improve the engine and it's performance. So as long as I can't beat it on full strength, I could better focus on improving my own performance. 
+## Sources
+#### Board representation
+- https://en.wikipedia.org/wiki/Bitboard#Chess_bitboards
+#### Move generation 
+- https://rhysre.net/fast-chess-move-generation-with-magic-bitboards.html
+#### Evaluation
+- https://www.chessprogramming.org/Simplified_Evaluation_Function
+- https://www.chessprogramming.org/Quiescence_Search
+#### Find the best move
+- https://www.chessprogramming.org/Negamax
+- https://www.chessprogramming.org/Alpha-Beta
